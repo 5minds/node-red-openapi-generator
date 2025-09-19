@@ -792,7 +792,11 @@
 
                         var schema = node.requestBody.content[contentType].schema;
                         if (schema) {
-                            $('#node-config-input-requestBody-json').val(JSON.stringify(schema, null, 2));
+                            if (typeof schema === 'object') {
+                                $('#node-config-input-requestBody-json').val(JSON.stringify(schema, null, 2));
+                            } else {
+                                $('#node-config-input-requestBody-json').val(schema);
+                            }
                         }
                     }
                 }
