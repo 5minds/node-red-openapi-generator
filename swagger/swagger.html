@@ -903,14 +903,33 @@
                 var jsonSchema = $('#node-config-input-requestBody-json').val();
 
                 if (contentType && contentType.trim() !== '' && jsonSchema && jsonSchema.trim() !== '') {
-                    try {
-                        var schema = JSON.parse(jsonSchema);
-                        requestBody.content[contentType] = {
-                            schema: schema,
-                        };
-                    } catch (e) {
-                        console.error('Invalid JSON schema:', e);
-                        // Handle the error, maybe notify the user
+                    if (contentType.includes('json')) {
+                        try {
+                            var schema = JSON.parse(jsonSchema);
+                            requestBody.content[contentType] = {
+                                schema: schema,
+                            };
+                        } catch (e) {
+                            console.error('Invalid JSON schema:', e);
+                            // Handle the error, maybe notify the user
+                        }
+                    } else {
+                        // For non-JSON content types (like XML), treat the input as a string schema
+                        try {
+                            // Try to parse as JSON first (in case user entered valid JSON schema for XML)
+                            var schema = JSON.parse(jsonSchema);
+                            requestBody.content[contentType] = {
+                                schema: schema,
+                            };
+                        } catch (e) {
+                            // If it's not valid JSON, treat it as a string example or description
+                            requestBody.content[contentType] = {
+                                schema: {
+                                    type: 'string',
+                                    example: jsonSchema,
+                                },
+                            };
+                        }
                     }
                 }
 
