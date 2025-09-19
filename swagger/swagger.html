@@ -790,12 +790,20 @@
                     if (contentType) {
                         $('#node-config-input-requestBody-contentType').val(contentType);
 
-                        var schema = node.requestBody.content[contentType].schema;
-                        if (schema) {
-                            if (typeof schema === 'object') {
-                                $('#node-config-input-requestBody-json').val(JSON.stringify(schema, null, 2));
+                        var contentObj = node.requestBody.content[contentType];
+
+                        // Check if there's an example (raw content) or schema (JSON)
+                        if (contentObj.example) {
+                            // Load the raw example content (XML, etc.)
+                            $('#node-config-input-requestBody-json').val(contentObj.example);
+                        } else if (contentObj.schema) {
+                            // Load the JSON schema
+                            if (typeof contentObj.schema === 'object') {
+                                $('#node-config-input-requestBody-json').val(
+                                    JSON.stringify(contentObj.schema, null, 2),
+                                );
                             } else {
-                                $('#node-config-input-requestBody-json').val(schema);
+                                $('#node-config-input-requestBody-json').val(contentObj.schema);
                             }
                         }
                     }
@@ -901,37 +909,43 @@
                     content: {},
                 };
 
-                console.log('Initial request body:', requestBody);
-
                 var contentType = $('#node-config-input-requestBody-contentType').val();
-                var jsonSchema = $('#node-config-input-requestBody-json').val();
+                var schemaContent = $('#node-config-input-requestBody-json').val();
 
-                if (contentType && contentType.trim() !== '' && jsonSchema && jsonSchema.trim() !== '') {
+                if (contentType && contentType.trim() !== '' && schemaContent && schemaContent.trim() !== '') {
                     if (contentType.includes('json')) {
+                        // For JSON content types, try to parse as JSON schema
                         try {
-                            var schema = JSON.parse(jsonSchema);
+                            var schema = JSON.parse(schemaContent);
                             requestBody.content[contentType] = {
                                 schema: schema,
                             };
                         } catch (e) {
                             console.error('Invalid JSON schema:', e);
-                            // Handle the error, maybe notify the user
-                        }
-                    } else {
-                        // For non-JSON content types (like XML), treat the input as a string schema
-                        try {
-                            // Try to parse as JSON first (in case user entered valid JSON schema for XML)
-                            var schema = JSON.parse(jsonSchema);
-                            requestBody.content[contentType] = {
-                                schema: schema,
-                            };
-                        } catch (e) {
-                            // If it's not valid JSON, treat it as a string example or description
+                            // If JSON parsing fails, store as string schema
                             requestBody.content[contentType] = {
                                 schema: {
                                     type: 'string',
-                                    example: jsonSchema,
                                 },
+                                example: schemaContent,
+                            };
+                        }
+                    } else {
+                        // For non-JSON content types (XML, text, etc.), store as example
+                        // Check if user provided a JSON schema or raw content
+                        try {
+                            var parsed = JSON.parse(schemaContent);
+                            // If it parses as JSON, assume it's a schema definition
+                            requestBody.content[contentType] = {
+                                schema: parsed,
+                            };
+                        } catch (e) {
+                            // If it doesn't parse as JSON, treat it as raw content/example
+                            requestBody.content[contentType] = {
+                                schema: {
+                                    type: 'string',
+                                },
+                                example: schemaContent,
                             };
                         }
                     }
@@ -947,7 +961,6 @@
                 } else {
                     delete node.requestBody;
                 }
-
                 // Debugging: Final requestBody object
                 console.log('Final requestBody object:', node.requestBody);
 
