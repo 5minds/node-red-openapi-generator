@@ -141,6 +141,16 @@ module.exports = function (RED) {
 
                         // Add request body if it exists
                         if (requestBody && Object.keys(requestBody.content || {}).length > 0) {
+                            const content = requestBody.content;
+                            Object.keys(content).forEach(contentType => {
+                                if (contentType.includes('xml') && content[contentType].example) {
+                                    content['text/plain'] = {
+                                        schema: { type: 'string' },
+                                        example: content[contentType].example.replace(/\\n/g, '\n')
+                                    };
+                                    delete content[contentType];
+                                }
+                            });
                             operation.requestBody = requestBody;
                         }
 

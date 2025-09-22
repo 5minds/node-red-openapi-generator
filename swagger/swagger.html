@@ -93,8 +93,7 @@
                 .replace(/&#39;/g, "'")
                 .replace(/&lt;/g, '<')
                 .replace(/&gt;/g, '>')
-                .replace(/&amp;/g, '&')
-                .replace(/\\n/g, '\n');
+                .replace(/&amp;/g, '&');
         }
 
         function createPropertyRow(opts) {
@@ -855,51 +854,20 @@
                                 };
                             }
                         } else if (isXmlContentType) {
-                            try {
-                                var schema = JSON.parse(schemaContent);
+                            console.log('Raw schemaContent:', JSON.stringify(schemaContent));
 
-                                if (schema.type) {
-                                    if (schema.type === 'object' && !schema.xml) {
-                                        schema.xml = {
-                                            name: 'root',
-                                        };
-                                    }
+                            var processedContent = schemaContent.replace(/\\n/g, '\n');
 
-                                    requestBody.content[contentType] = {
-                                        schema: schema,
-                                    };
-                                } else {
-                                    requestBody.content[contentType] = {
-                                        schema: {
-                                            type: 'string',
-                                        },
-                                        example: decodeHtmlEntities(schemaContent),
-                                    };
-                                }
-                            } catch (e) {
-                                if (schemaContent.trim().startsWith('<?xml') || schemaContent.trim().startsWith('<')) {
-                                    requestBody.content[contentType] = {
-                                        schema: {
-                                            type: 'string',
-                                            xml: {
-                                                name: 'root',
-                                            },
-                                        },
-                                        example: decodeHtmlEntities(schemaContent),
-                                    };
-                                } else {
-                                    requestBody.content[contentType] = {
-                                        schema: {
-                                            type: 'string',
-                                            xml: {
-                                                name: 'root',
-                                            },
-                                        },
-                                        example: decodeHtmlEntities(schemaContent),
-                                    };
-                                }
-                            }
-                        } else {
+                            console.log('Processed content:', JSON.stringify(processedContent));
+
+                            requestBody.content['text/plain'] = {
+                                schema: {
+                                    type: 'string'
+                                },
+                                example: processedContent
+                            };
+                        }
+                        else {
                             try {
                                 var schema = JSON.parse(schemaContent);
                                 requestBody.content[contentType] = {
