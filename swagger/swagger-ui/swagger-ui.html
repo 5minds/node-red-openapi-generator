@@ -4,22 +4,6 @@
         <title>Swagger UI</title>
         <link rel="stylesheet" type="text/css" href="swagger-ui.css" />
         <style>
-            /* Dark mode toggle button */
-            .dark-mode-toggle {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 9999;
-                background: #3b82f6;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 10px 15px;
-                cursor: pointer;
-                font-size: 14px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-                transition: all 0.3s ease;
-            }
 
             .dark-mode-toggle:hover {
                 background: #2563eb;
@@ -50,6 +34,63 @@
             [data-theme="dark"] .swagger-ui .topbar {
                 background: #1e293b !important;
                 border-bottom: 1px solid #334155;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                padding: 10px 20px !important;
+                position: relative !important;
+            }
+
+            /* Make the Explore button more compact */
+            [data-theme="dark"] .swagger-ui .topbar .download-url-wrapper {
+                max-width: none !important;
+                flex-shrink: 1 !important;
+                margin-right: 120px !important; /* Space for toggle button */
+                overflow: visible !important;
+            }
+
+            [data-theme="dark"] .swagger-ui .topbar .download-url-wrapper .btn {
+                padding: 6px 12px !important;
+                font-size: 12px !important;
+                white-space: nowrap !important;
+                min-width: auto !important;
+                overflow: visible !important;
+            }
+
+            /* Adjust toggle button for smaller screens */
+            .dark-mode-toggle {
+                position: fixed;
+                top: 15px;
+                right: 15px;
+                z-index: 9999;
+                background: #3b82f6;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 12px;
+                cursor: pointer;
+                font-size: 12px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+                transition: all 0.3s ease;
+            }
+
+            /* Responsive adjustments */
+            @media (max-width: 768px) {
+                [data-theme="dark"] .swagger-ui .topbar .download-url-wrapper {
+                    margin-right: 100px !important;
+                }
+
+                [data-theme="dark"] .swagger-ui .topbar .download-url-wrapper .btn {
+                    padding: 4px 8px !important;
+                    font-size: 11px !important;
+                }
+
+                .dark-mode-toggle {
+                    top: 12px;
+                    right: 12px;
+                    padding: 6px 8px;
+                    font-size: 10px;
+                }
             }
 
             [data-theme="dark"] .swagger-ui .info {
