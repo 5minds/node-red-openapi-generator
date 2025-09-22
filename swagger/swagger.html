@@ -620,31 +620,35 @@
             onpaletteadd: function () {
                 var content = $('<div/>', {
                     id: 'tab-swagger-ui',
-                    style: 'position: relative; padding: 0px 4px; height: 100%; overflow: hidden',
+                    style: 'position: relative; padding: 20px; height: 100%; overflow: hidden; text-align: center;'
                 });
 
-                swaggerDocUrl =
-                    window.location.protocol +
-                    '//' +
-                    window.location.hostname +
-                    ':' +
-                    window.location.port +
-                    RED.settings.httpNodeRoot +
-                    'http-api/swagger.json';
-                var swaggerFrame = $('<iframe/>', {
-                    id: 'swagger-ui-frame',
-                    style: 'margin: 0; padding: 0; border: none; width: 100%; height: 100%',
-                    src: 'swagger-ui/swagger-ui.html',
-                }).appendTo(content);
+                var openButton = $('<button/>', {
+                    id: 'open-swagger-button',
+                    class: 'red-ui-button',
+                    style: 'padding: 12px 24px; font-size: 16px; margin-top: 50px; text-align: center; display: inline-block; line-height: 1;',
+                    text: 'Open Swagger UI'
+                });
+
+                openButton.click(function() {
+                    var swaggerUrl = window.location.protocol + '//' +
+                                    window.location.hostname + ':' +
+                                    window.location.port +
+                                    RED.settings.httpNodeRoot +
+                                    'swagger-ui/swagger-ui.html';
+                    window.open(swaggerUrl, '_blank');
+                });
+
+                openButton.appendTo(content);
+
                 RED.sidebar.addTab({
                     id: 'swagger-ui',
                     label: this._('swagger.sidebar.label'),
                     name: this._('swagger.sidebar.name'),
                     content: content,
-                    iconClass: 'fa fa-file-text-o',
+                    iconClass: 'fa fa-scribd'
                 });
             },
-
             oneditprepare: function () {
                 var node = this;
 
