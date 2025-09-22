@@ -64,15 +64,7 @@
         <div id="swagger-tab-requestBody">
             <div class="form-row">
                 <label for="node-config-input-requestBody-contentType"><span>Content Type</span></label>
-                <input type="text" id="node-config-input-requestBody-contentType" value="application/json" style="width: 70%;">
-                <select id="node-config-input-requestBody-contentType-preset" style="width: 25%; margin-left: 5px;">
-                    <option value="">-- Presets --</option>
-                    <option value="application/json">application/json</option>
-                    <option value="application/xml">application/xml</option>
-                    <option value="text/plain">text/plain</option>
-                    <option value="application/x-www-form-urlencoded">form-urlencoded</option>
-                    <option value="multipart/form-data">multipart/form-data</option>
-                </select>
+                <input type="text" id="node-config-input-requestBody-contentType" value="application/json" style="width: 100%;">
             </div>
             <div class="form-row">
                 <label for="node-config-input-requestBody-json"><span>Schema/Example</span></label>
@@ -94,6 +86,17 @@
 <script type="text/javascript">
     var swaggerDocUrl;
     (function () {
+        function decodeHtmlEntities(str) {
+            if (typeof str !== 'string') return str;
+            return str
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&amp;/g, '&')
+                .replace(/\\n/g, '\n');
+        }
+
         function createPropertyRow(opts) {
             var row = $('<div/>', {
                 class: 'node-swagger-property-name-row',
@@ -559,119 +562,6 @@
             }
         }
 
-        function createRequestBodyLine(opts, expand) {
-            var li = $('<li/>', {
-                style: 'background: #fff; margin:4px 0; border: 1px solid #ccc;',
-            }).appendTo('#node-config-requestBody-properties');
-
-            var row1 = $('<div/>', {
-                style: 'background:#f3f3f3; padding: 5px;',
-            }).appendTo(li);
-            var remove = $('<a/>', {
-                href: '#',
-                class: 'red-ui-button red-ui-button-small',
-                style: 'float: right; margin-right: 5px; margin-top: 3px;',
-            }).appendTo(row1);
-            var removeIcon = $('<i/>', {
-                class: 'fa fa-remove',
-            }).appendTo(remove);
-
-            remove.click(function (e) {
-                li.slideUp(100, function () {
-                    li.remove();
-                });
-                e.preventDefault();
-            });
-
-            var expanderSpan = $('<span/>', {
-                style: 'display:inline-block; width: 20px; margin-right:10px;',
-            }).appendTo(row1);
-            var expander = $('<a/>', {
-                href: '#',
-                style: 'text-align: center; display: inline-block; 5px; width: 20px; height: 30px; line-height: 30px;',
-            }).appendTo(expanderSpan);
-            var expanderIcon = $('<i/>', {
-                class: 'fa fa-chevron-right',
-                style: 'width: 15px; text-align:centre;',
-            }).appendTo(expander);
-
-            var showDetails = function () {
-                expanderIcon.removeClass('fa-chevron-right');
-                expanderIcon.addClass('fa-chevron-down');
-                nameRows.slideDown(200);
-            };
-            var hideDetails = function () {
-                expanderIcon.removeClass('fa-chevron-down');
-                expanderIcon.addClass('fa-chevron-right');
-                nameRows.slideUp(200);
-            };
-
-            expander.click(function (e) {
-                var icn = $(this).children('.fa');
-                if (icn.hasClass('fa-chevron-right')) {
-                    showDetails();
-                } else {
-                    hideDetails();
-                }
-                e.preventDefault();
-            });
-
-            var schemaName = $('<input/>', {
-                style: 'max-width: 150px',
-                type: 'text',
-                class: 'node-swagger-schema-name',
-            }).appendTo(row1);
-            schemaName.val(opts.name);
-
-            var nameRows = $('<div/>', {
-                class: 'node-swagger-name-row',
-                style: 'padding: 15px;',
-            })
-                .appendTo(li)
-                .hide();
-
-            var row2 = generateTypeRow(opts, true).appendTo(nameRows);
-            var rowPropHeader = $('<div/>', {
-                class: 'form-row node-swagger-propHeader-row',
-            }).appendTo(nameRows);
-            $('<label/>', {
-                class: 'node-swagger-propHeader-label',
-                style: 'width: auto; font-weight: bold; margin-right: 10px',
-            })
-                .text('Properties')
-                .appendTo(rowPropHeader);
-            var addPropButton = $(
-                '<a href=#" class="red-ui-button red-ui-button-small" id="node-config-input-add-property"><i class="fa fa-plus"></i> ' +
-                    'Property' +
-                    '</a>',
-            ).appendTo(rowPropHeader);
-
-            var rowPropList = $('<div/>', {
-                class: 'form-row node-swagger-prop-list',
-                style: 'margin-left:10px',
-            }).appendTo(rowPropHeader);
-
-            addPropButton.click(function (e) {
-                generatePropertyRow({}).appendTo(rowPropList);
-                var scrollContainer = $('#node-config-requestBody-properties').parent();
-                scrollContainer.scrollTop(scrollContainer.prop('scrollHeight'));
-                e.preventDefault();
-            });
-
-            if (opts.schema && opts.schema.properties) {
-                var props = opts.schema.properties;
-                for (var prop in props) {
-                    var propOpt = opts.schema.properties[prop];
-                    propOpt.name = prop;
-                    generatePropertyRow(propOpt).appendTo(rowPropList);
-                }
-            }
-
-            if (!expand) {
-                hideDetails();
-            }
-        }
-
         function initializeUI(node) {
             var tabs = RED.tabs.create({
                 id: 'node-config-swagger-tabs',
@@ -711,16 +601,6 @@
                 }
             }
             return items;
-        }
-
-        function generateTypeRow(opts, top) {
-            // This is the same as createTypeRow but with different naming for request body context
-            return createTypeRow(opts, top);
-        }
-
-        function generatePropertyRow(opts) {
-            // This is the same as createPropertyRow but with different naming for request body context
-            return createPropertyRow(opts);
         }
 
         RED.nodes.registerType('swagger-doc', {
@@ -785,13 +665,6 @@
 
                 initializeUI(node);
 
-                $('#node-config-input-requestBody-contentType-preset').change(function () {
-                    var preset = $(this).val();
-                    if (preset) {
-                        $('#node-config-input-requestBody-contentType').val(preset);
-                    }
-                });
-
                 $('#node-config-input-add-parameter').click(function (e) {
                     createParameterLine({}, true);
                     var scrollContainer = $('#node-config-parameter-list').parent();
@@ -806,47 +679,57 @@
                     e.preventDefault();
                 });
 
-                $('#node-config-input-add-property').click(function (e) {
-                    createRequestBodyLine({}, true);
-                    var scrollContainer = $('#node-config-requestBody-properties').parent();
-                    scrollContainer.scrollTop(scrollContainer.prop('scrollHeight'));
-                    e.preventDefault();
-                });
+                if (node.parameters && node.parameters.length > 0) {
+                    node.parameters.forEach(function (p) {
+                        createParameterLine(p, false);
+                    });
+                }
 
-                // Parse parameters and generate list
-                node.parameters.forEach(function (p) {
-                    createParameterLine(p, false);
-                });
-
-                // Parse responses and generate list
-                for (var code in node.responses) {
-                    var response = node.responses[code];
-                    response.code = code;
-                    createResponseLine(response, false);
+                if (node.responses) {
+                    for (var code in node.responses) {
+                        var response = node.responses[code];
+                        response.code = code;
+                        createResponseLine(response, false);
+                    }
                 }
 
                 if (node.requestBody) {
-                    $('#node-config-input-requestBody-description').val(node.requestBody.description);
-                    $('#node-config-input-requestBody-required').prop('checked', node.requestBody.required || false);
-
                     var contentType = Object.keys(node.requestBody.content)[0];
                     if (contentType) {
                         $('#node-config-input-requestBody-contentType').val(contentType);
 
                         var contentObj = node.requestBody.content[contentType];
 
-                        // Check if there's an example (raw content) or schema (JSON)
+                        var isXmlContentType =
+                            contentType === 'application/xml' ||
+                            contentType === 'text/xml' ||
+                            contentType.includes('xml');
+
                         if (contentObj.example) {
-                            // Load the raw example content (XML, etc.)
-                            $('#node-config-input-requestBody-json').val(contentObj.example);
+                            var exampleContent = contentObj.example;
+
+                            if (isXmlContentType) {
+                                exampleContent = decodeHtmlEntities(exampleContent);
+                            }
+
+                            $('#node-config-input-requestBody-json').val(exampleContent);
                         } else if (contentObj.schema) {
-                            // Load the JSON schema
-                            if (typeof contentObj.schema === 'object') {
-                                $('#node-config-input-requestBody-json').val(
-                                    JSON.stringify(contentObj.schema, null, 2),
-                                );
+                            if (isXmlContentType) {
+                                if (typeof contentObj.schema === 'object') {
+                                    $('#node-config-input-requestBody-json').val(
+                                        JSON.stringify(contentObj.schema, null, 2),
+                                    );
+                                } else {
+                                    $('#node-config-input-requestBody-json').val(decodeHtmlEntities(contentObj.schema));
+                                }
                             } else {
-                                $('#node-config-input-requestBody-json').val(contentObj.schema);
+                                if (typeof contentObj.schema === 'object') {
+                                    $('#node-config-input-requestBody-json').val(
+                                        JSON.stringify(contentObj.schema, null, 2),
+                                    );
+                                } else {
+                                    $('#node-config-input-requestBody-json').val(contentObj.schema);
+                                }
                             }
                         }
                     }
@@ -856,10 +739,6 @@
             oneditsave: function () {
                 var node = this;
 
-                // Debugging: Start of oneditsave function
-                console.log('Starting oneditsave function');
-
-                // Collect parameters
                 var params = [];
                 $('#node-config-parameter-list li').each(function () {
                     var param = {};
@@ -943,10 +822,6 @@
                 });
                 node.parameters = params;
 
-                // Debugging: Parameters collected
-                console.log('Parameters collected:', params);
-
-                // Collect request body
                 var requestBodyDescription = $('#node-config-input-requestBody-description').val();
                 var requestBodyRequired = $('#node-config-input-requestBody-required').is(':checked');
                 var contentType = $('#node-config-input-requestBody-contentType').val();
@@ -960,15 +835,18 @@
                     };
 
                     if (contentType && schemaContent) {
+                        var isXmlContentType =
+                            contentType === 'application/xml' ||
+                            contentType === 'text/xml' ||
+                            contentType.includes('xml');
+
                         if (contentType === 'application/json') {
-                            // Try to parse as JSON schema
                             try {
                                 var schema = JSON.parse(schemaContent);
                                 requestBody.content[contentType] = {
                                     schema: schema,
                                 };
                             } catch (e) {
-                                // If JSON parsing fails, create a simple string schema with example
                                 requestBody.content[contentType] = {
                                     schema: {
                                         type: 'string',
@@ -976,18 +854,68 @@
                                     example: schemaContent,
                                 };
                             }
+                        } else if (isXmlContentType) {
+                            try {
+                                var schema = JSON.parse(schemaContent);
+
+                                if (schema.type) {
+                                    if (schema.type === 'object' && !schema.xml) {
+                                        schema.xml = {
+                                            name: 'root',
+                                        };
+                                    }
+
+                                    requestBody.content[contentType] = {
+                                        schema: schema,
+                                    };
+                                } else {
+                                    requestBody.content[contentType] = {
+                                        schema: {
+                                            type: 'string',
+                                        },
+                                        example: decodeHtmlEntities(schemaContent),
+                                    };
+                                }
+                            } catch (e) {
+                                if (schemaContent.trim().startsWith('<?xml') || schemaContent.trim().startsWith('<')) {
+                                    requestBody.content[contentType] = {
+                                        schema: {
+                                            type: 'string',
+                                            xml: {
+                                                name: 'root',
+                                            },
+                                        },
+                                        example: decodeHtmlEntities(schemaContent),
+                                    };
+                                } else {
+                                    requestBody.content[contentType] = {
+                                        schema: {
+                                            type: 'string',
+                                            xml: {
+                                                name: 'root',
+                                            },
+                                        },
+                                        example: decodeHtmlEntities(schemaContent),
+                                    };
+                                }
+                            }
                         } else {
-                            // For non-JSON content types, store as example
-                            requestBody.content[contentType] = {
-                                schema: {
-                                    type: 'string',
-                                },
-                                example: schemaContent,
-                            };
+                            try {
+                                var schema = JSON.parse(schemaContent);
+                                requestBody.content[contentType] = {
+                                    schema: schema,
+                                };
+                            } catch (e) {
+                                requestBody.content[contentType] = {
+                                    schema: {
+                                        type: 'string',
+                                    },
+                                    example: schemaContent,
+                                };
+                            }
                         }
                     }
-                    
-                    // Only set requestBody if it has content
+
                     if (Object.keys(requestBody.content).length > 0) {
                         node.requestBody = requestBody;
                     } else {
@@ -997,7 +925,6 @@
                     delete node.requestBody;
                 }
 
-                // Collect responses
                 var responses = {};
                 $('#node-config-response-list li').each(function () {
                     var response = {};
@@ -1054,9 +981,6 @@
                     responses[respCode] = response;
                 });
                 node.responses = responses;
-
-                // Debugging: Responses collected
-                console.log('Responses collected:', responses);
             },
         });
     })();
