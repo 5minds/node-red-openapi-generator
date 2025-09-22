@@ -687,6 +687,38 @@
             }, 10);
         }
 
+        function getArrayItems(row) {
+            var items = {};
+            var ctype = row.children('.node-swagger-type-select').val();
+            if (ctype) {
+                if (ctype != 'ref') {
+                    items.type = ctype;
+                    if (items.type == 'array') {
+                        var collFormat = row.children('.node-swagger-type-collection-format').val();
+                        if (collFormat) items.collectionFormat = collFormat;
+                        var nextRow = row.children('.node-swagger-type-row');
+                        items.items = getArrayItems(nextRow);
+                    } else {
+                        var format = row.children('.node-swagger-type-format').val();
+                        if (format) items.format = format;
+                    }
+                } else {
+                    items['$ref'] = row.children('.node-swagger-type-format').val();
+                }
+            }
+            return items;
+        }
+
+        function generateTypeRow(opts, top) {
+            // This is the same as createTypeRow but with different naming for request body context
+            return createTypeRow(opts, top);
+        }
+
+        function generatePropertyRow(opts) {
+            // This is the same as createPropertyRow but with different naming for request body context
+            return createPropertyRow(opts);
+        }
+
         RED.nodes.registerType('swagger-doc', {
             category: 'config',
             exclusive: true,
