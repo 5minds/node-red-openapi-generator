@@ -14,15 +14,12 @@
  * limitations under the License.
  **/
 
-//const swaggerUiDistPath = require('swagger-ui-dist').getAbsoluteFSPath();
-
 const DEFAULT_TEMPLATE = {
     openapi: '3.0.0',
     info: {
         title: 'My Node-RED API',
         version: '1.0.0',
         description: 'A sample API',
-        // You can also add 'termsOfService', 'contact', and 'license' information here
     },
     servers: [
         {
@@ -38,13 +35,10 @@ const DEFAULT_TEMPLATE = {
         securitySchemes: {},
     },
     tags: [],
-    // Add more properties as needed
 };
 
 module.exports = function (RED) {
     'use strict';
-
-    //console.log("Dev version of this flow");
 
     const path = require('path');
 
@@ -55,90 +49,139 @@ module.exports = function (RED) {
     const stripTerminalSlash = (url) => (url.length > 1 && url.endsWith('/') ? url.slice(0, -1) : url);
     const regexColons = /\/:\w*/g;
 
+    // Helper function to convert collection format to OpenAPI 3.0 style
+    const getStyleFromCollectionFormat = (collectionFormat) => {
+        const formatMap = {
+            csv: 'simple',
+            ssv: 'spaceDelimited',
+            tsv: 'pipeDelimited',
+            pipes: 'pipeDelimited',
+            multi: 'form',
+        };
+        return formatMap[collectionFormat] || 'simple';
+    };
+
     RED.httpNode.get('/http-api/swagger.json', (req, res) => {
-        const { httpNodeRoot, openapi: { template = {}, parameters: additionalParams = [] } = {} } = RED.settings;
+        try {
+            const { httpNodeRoot, openapi: { template = {}, parameters: additionalParams = [] } = {} } = RED.settings;
 
-        const resp = { ...DEFAULT_TEMPLATE, ...template };
-        const { basePath = httpNodeRoot } = resp;
+            const resp = { ...DEFAULT_TEMPLATE, ...template };
+            resp.paths = {};
 
-        resp.paths = {};
-
-        RED.nodes.eachNode((node) => {
-            const { name, type, method, swaggerDoc, url } = node;
-
-            if (type === 'http in') {
-                const swaggerDocNode = RED.nodes.getNode(swaggerDoc);
-
-                if (swaggerDocNode) {
-                    const endPoint = ensureLeadingSlash(url.replace(regexColons, convToSwaggerPath));
-                    if (!resp.paths[endPoint]) resp.paths[endPoint] = {};
-
-                    const {
-                        summary = swaggerDocNode.summary || name || method + ' ' + endPoint,
-                        description = swaggerDocNode.description || '',
-                        tags = swaggerDocNode.tags || '',
-                        deprecated = swaggerDocNode.deprecated || false,
-                        parameters = swaggerDocNode.parameters || [],
-                        requestBody = swaggerDocNode.requestBody || {},
-                    } = swaggerDocNode;
-
-                    const aryTags = csvStrToArray(tags);
-
-                    const operation = {
-                        summary,
-                        description,
-                        tags: aryTags,
-                        deprecated,
-                        parameters: [...parameters, ...additionalParams].map((param) => {
-                            return {
-                                name: param.name,
-                                in: param.in,
-                                required: param.required,
-                                schema: {
-                                    type: param.type,
-                                },
-                                description: param.description,
-                            };
-                        }),
-                        requestBody: requestBody,
-                        responses: {},
-                    };
-
-                    if (
-                        swaggerDocNode &&
-                        typeof swaggerDocNode.responses === 'object' &&
-                        swaggerDocNode.responses !== null
-                    ) {
-                        Object.keys(swaggerDocNode.responses).forEach((status) => {
-                            const responseDetails = swaggerDocNode.responses[status];
-                            operation.responses[status] = {
-                                description: responseDetails.description || 'No description',
-                                content: {},
-                            };
-
-                            if (responseDetails.schema) {
-                                operation.responses[status].content['application/json'] = {
-                                    schema: responseDetails.schema,
-                                };
-                            }
-                        });
-                    } else {
-                        console.error(
-                            'swaggerDocNode.responses is not an object or is null:',
-                            swaggerDocNode.responses,
-                        );
-                    }
-
-                    resp.paths[endPoint][method.toLowerCase()] = operation;
-                } else {
-                    console.error('No Swagger Documentation node found for HTTP In node:', node.id);
-                }
+            // Update server URL to include the httpNodeRoot
+            if (httpNodeRoot && httpNodeRoot !== '/') {
+                resp.servers = resp.servers.map((server) => ({
+                    ...server,
+                    url: server.url.replace(/\/$/, '') + httpNodeRoot,
+                }));
             }
-        });
 
-        // Final cleanup to remove empty sections
-        cleanupOpenAPISpec(resp);
-        res.json(resp);
+            RED.nodes.eachNode((node) => {
+                const { name, type, method, swaggerDoc, url } = node;
+
+                if (type === 'http in' && swaggerDoc) {
+                    const swaggerDocNode = RED.nodes.getNode(swaggerDoc);
+
+                    if (swaggerDocNode) {
+                        // Convert Node-RED path parameters to OpenAPI format
+                        const endPoint = stripTerminalSlash(
+                            ensureLeadingSlash(url.replace(regexColons, convToSwaggerPath)),
+                        );
+
+                        if (!resp.paths[endPoint]) resp.paths[endPoint] = {};
+
+                        const {
+                            summary = name || `${method.toUpperCase()} ${endPoint}`,
+                            description = '',
+                            tags = '',
+                            deprecated = false,
+                            parameters = [],
+                            requestBody = null,
+                            responses = {},
+                        } = swaggerDocNode;
+
+                        const aryTags = csvStrToArray(tags);
+
+                        const operation = {
+                            summary,
+                            description,
+                            tags: aryTags,
+                            deprecated,
+                            parameters: [...parameters, ...additionalParams].map((param) => {
+                                const paramDef = {
+                                    name: param.name,
+                                    in: param.in,
+                                    required: param.required || false,
+                                    description: param.description || '',
+                                };
+
+                                // Handle parameter schema - preserve the original schema structure
+                                if (param.schema) {
+                                    // If there's already a schema object, use it
+                                    paramDef.schema = param.schema;
+                                } else if (param.type) {
+                                    // Build schema from individual type properties
+                                    paramDef.schema = { type: param.type };
+                                    if (param.format) {
+                                        paramDef.schema.format = param.format;
+                                    }
+                                    if (param.type === 'array' && param.items) {
+                                        paramDef.schema.items = param.items;
+                                    }
+                                    if (param.collectionFormat && param.type === 'array') {
+                                        paramDef.style = getStyleFromCollectionFormat(param.collectionFormat);
+                                        paramDef.explode = param.collectionFormat === 'multi';
+                                    }
+                                }
+
+                                return paramDef;
+                            }),
+                            responses: {},
+                        };
+
+                        // Add request body if it exists
+                        if (requestBody && Object.keys(requestBody.content || {}).length > 0) {
+                            operation.requestBody = requestBody;
+                        }
+
+                        // Process responses
+                        if (responses && typeof responses === 'object') {
+                            Object.keys(responses).forEach((status) => {
+                                const responseDetails = responses[status];
+                                operation.responses[status] = {
+                                    description: responseDetails.description || 'No description',
+                                };
+
+                                // Add content if schema exists
+                                if (responseDetails.schema) {
+                                    operation.responses[status].content = {
+                                        'application/json': {
+                                            schema: responseDetails.schema,
+                                        },
+                                    };
+                                }
+                            });
+                        }
+
+                        // Ensure at least one response exists
+                        if (Object.keys(operation.responses).length === 0) {
+                            operation.responses['200'] = {
+                                description: 'Successful response',
+                            };
+                        }
+
+                        resp.paths[endPoint][method.toLowerCase()] = operation;
+                    }
+                }
+            });
+
+            // Clean up empty sections
+            cleanupOpenAPISpec(resp);
+            res.json(resp);
+        } catch (error) {
+            console.error('Error generating Swagger JSON:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
     });
 
     function cleanupOpenAPISpec(spec) {
@@ -167,57 +210,39 @@ module.exports = function (RED) {
         this.summary = n.summary;
         this.description = n.description;
         this.tags = n.tags;
-        this.parameters = n.parameters;
-        this.responses = n.responses;
-        this.requestBody = n.requestBody; // Ensure requestBody is captured
-        this.deprecated = n.deprecated;
+        this.parameters = n.parameters || [];
+        this.responses = n.responses || {};
+        this.requestBody = n.requestBody || null;
+        this.deprecated = n.deprecated || false;
     }
     RED.nodes.registerType('swagger-doc', SwaggerDoc);
 
     // Serve the main Swagger UI HTML file
     RED.httpAdmin.get('/swagger-ui/swagger-ui.html', (req, res) => {
-        // Correct the path to point directly to the 'swagger-ui.html' file
-        const filename = path.join(__dirname, 'swagger-ui/swagger-ui.html');
+        const filename = path.join(__dirname, 'swagger-ui', 'swagger-ui.html');
         sendFile(res, filename);
     });
 
-    // Serve i18next localization files
-    RED.httpAdmin.get('/swagger-ui/i18next.min.js', (req, res) => {
-        const filename = path.join(__dirname, '..', 'node_modules', 'i18next', 'i18next.min.js');
-        sendFile(res, filename);
+    // Serve Swagger UI assets
+    RED.httpAdmin.get('/swagger-ui/*', (req, res, next) => {
+        let filename = req.params[0];
+
+        // Skip if it's the HTML file (handled by specific route above)
+        if (filename === 'swagger-ui.html') {
+            return next();
+        }
+
+        try {
+            const swaggerUiPath = require('swagger-ui-dist').getAbsoluteFSPath();
+            const filePath = path.join(swaggerUiPath, filename);
+            sendFile(res, filePath);
+        } catch (err) {
+            console.error('Error serving Swagger UI asset:', err);
+            res.status(404).send('File not found');
+        }
     });
 
-    // Serve Swagger UI assets like CSS and JS from swagger-ui-dist
-    RED.httpAdmin.get(
-        '/swagger-ui/*',
-        (req, res, next) => {
-            // Extract the actual file name from the request params
-            let filename = req.params[0];
-
-            // If the filename is 'swagger-ui.html', redirect to the correct handler
-            if (filename === 'swagger-ui.html') {
-                return next();
-            }
-
-            // Serve the file from swagger-ui-dist
-            try {
-                const basePath = require('swagger-ui-dist').getAbsoluteFSPath();
-                const filePath = path.join(basePath, filename);
-                sendFile(res, filePath);
-            } catch (err) {
-                console.error(err);
-                res.status(404).send('File not found');
-            }
-        },
-        (req, res) => {
-            // Fallback handler for 'swagger-ui.html', in case the above handler is triggered
-            // due to the way Express handles wildcard routes
-            const filename = path.join(__dirname, 'swagger', 'swagger-ui.html');
-            sendFile(res, filename);
-        },
-    );
-
-    // Serve any other localization files
+    // Serve localization files
     RED.httpAdmin.get('/swagger-ui/nls/*', (req, res) => {
         const filename = path.join(__dirname, 'locales', req.params[0]);
         sendFile(res, filename);
@@ -225,12 +250,17 @@ module.exports = function (RED) {
 
     // Generic function to send files
     function sendFile(res, filePath) {
-        // Implement the logic to send the file
-        // For example, using Express' res.sendFile:
-        res.sendFile(filePath, (err) => {
+        const fs = require('fs');
+
+        // Check if file exists
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).send('File not found');
+        }
+
+        res.sendFile(path.resolve(filePath), (err) => {
             if (err) {
                 console.error('Error sending file:', err);
-                res.status(err.status || 500).send('Error sending file.');
+                res.status(err.status || 500).send('Error sending file');
             }
         });
     }
