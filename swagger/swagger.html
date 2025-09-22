@@ -62,23 +62,27 @@
             </div>
         </div>
         <div id="swagger-tab-requestBody">
-          <div class="form-row">
-              <label id="node-config-input-requestBody-label" for="node-config-input-requestBody" class="popover-right"><span>Request Body Description</span></label>
-              <input type="text" id="node-config-input-requestBody-description" style="width:100%;">
-          </div>
-          <div class="form-row">
-              <label><span>Required</span></label>
-              <input type="checkbox" id="node-config-input-requestBody-required" style="width: auto; vertical-align: top;">
-          </div>
-          <div class="form-row">
-              <label id="node-config-input-requestBody-contentType-label" for="node-config-input-requestBody-contentType" class="popover-right"><span>Content Type</span></label>
-              <input type="text" id="node-config-input-requestBody-contentType" value="application/json" style="width: 100%;">
-          </div>
-          <div class="form-row">
-              <label id="node-config-input-requestBody-json-label" for="node-config-input-requestBody-json" class="popover-right"><span>Request Body JSON Schema</span></label>
-              <textarea id="node-config-input-requestBody-json" style="width:100%; height: 200px;"></textarea>
-          </div>
-      </div>
+            <div class="form-row">
+                <label for="node-config-input-requestBody-contentType"><span>Content Type</span></label>
+                <input type="text" id="node-config-input-requestBody-contentType" value="application/json" style="width: 70%;">
+                <select id="node-config-input-requestBody-contentType-preset" style="width: 25%; margin-left: 5px;">
+                    <option value="">-- Presets --</option>
+                    <option value="application/json">application/json</option>
+                    <option value="application/xml">application/xml</option>
+                    <option value="text/plain">text/plain</option>
+                    <option value="application/x-www-form-urlencoded">form-urlencoded</option>
+                    <option value="multipart/form-data">multipart/form-data</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="node-config-input-requestBody-json"><span>Schema/Example</span></label>
+                <div style="margin-bottom: 5px;">
+                    <small>For JSON: provide JSON schema. For other types: provide example content.</small>
+                </div>
+                <textarea id="node-config-input-requestBody-json" style="width:100%; height: 200px;" placeholder='For JSON schema: {"type": "object", "properties": {...}}&#10;For XML example: &lt;root&gt;&lt;element&gt;value&lt;/element&gt;&lt;/root&gt;'></textarea>
+            </div>
+            </div>
+        </div>
 
     </div>
 </script>
@@ -781,6 +785,13 @@
 
                 initializeUI(node);
 
+                $('#node-config-input-requestBody-contentType-preset').change(function () {
+                    var preset = $(this).val();
+                    if (preset) {
+                        $('#node-config-input-requestBody-contentType').val(preset);
+                    }
+                });
+
                 $('#node-config-input-add-parameter').click(function (e) {
                     createParameterLine({}, true);
                     var scrollContainer = $('#node-config-parameter-list').parent();
@@ -936,43 +947,37 @@
                 console.log('Parameters collected:', params);
 
                 // Collect request body
-                var requestBody = {
-                    description: $('#node-config-input-requestBody-description').val(),
-                    content: {},
-                };
-
+                var requestBodyDescription = $('#node-config-input-requestBody-description').val();
+                var requestBodyRequired = $('#node-config-input-requestBody-required').is(':checked');
                 var contentType = $('#node-config-input-requestBody-contentType').val();
                 var schemaContent = $('#node-config-input-requestBody-json').val();
 
-                if (contentType && contentType.trim() !== '' && schemaContent && schemaContent.trim() !== '') {
-                    if (contentType.includes('json')) {
-                        // For JSON content types, try to parse as JSON schema
-                        try {
-                            var schema = JSON.parse(schemaContent);
-                            requestBody.content[contentType] = {
-                                schema: schema,
-                            };
-                        } catch (e) {
-                            console.error('Invalid JSON schema:', e);
-                            // If JSON parsing fails, store as string schema
-                            requestBody.content[contentType] = {
-                                schema: {
-                                    type: 'string',
-                                },
-                                example: schemaContent,
-                            };
-                        }
-                    } else {
-                        // For non-JSON content types (XML, text, etc.), store as example
-                        // Check if user provided a JSON schema or raw content
-                        try {
-                            var parsed = JSON.parse(schemaContent);
-                            // If it parses as JSON, assume it's a schema definition
-                            requestBody.content[contentType] = {
-                                schema: parsed,
-                            };
-                        } catch (e) {
-                            // If it doesn't parse as JSON, treat it as raw content/example
+                if (requestBodyDescription || schemaContent) {
+                    var requestBody = {
+                        description: requestBodyDescription || 'Request body',
+                        required: requestBodyRequired,
+                        content: {},
+                    };
+
+                    if (contentType && schemaContent) {
+                        if (contentType === 'application/json') {
+                            // Try to parse as JSON schema
+                            try {
+                                var schema = JSON.parse(schemaContent);
+                                requestBody.content[contentType] = {
+                                    schema: schema,
+                                };
+                            } catch (e) {
+                                // If JSON parsing fails, create a simple string schema with example
+                                requestBody.content[contentType] = {
+                                    schema: {
+                                        type: 'string',
+                                    },
+                                    example: schemaContent,
+                                };
+                            }
+                        } else {
+                            // For non-JSON content types, store as example
                             requestBody.content[contentType] = {
                                 schema: {
                                     type: 'string',
@@ -981,20 +986,16 @@
                             };
                         }
                     }
-                }
-
-                var requestBodyRequired = $('#node-config-input-requestBody-required').is(':checked');
-                if (requestBodyRequired) {
-                    requestBody.required = true;
-                }
-
-                if (Object.keys(requestBody.content).length > 0) {
-                    node.requestBody = requestBody;
+                    
+                    // Only set requestBody if it has content
+                    if (Object.keys(requestBody.content).length > 0) {
+                        node.requestBody = requestBody;
+                    } else {
+                        delete node.requestBody;
+                    }
                 } else {
                     delete node.requestBody;
                 }
-                // Debugging: Final requestBody object
-                console.log('Final requestBody object:', node.requestBody);
 
                 // Collect responses
                 var responses = {};
