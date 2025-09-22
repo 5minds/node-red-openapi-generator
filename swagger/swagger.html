@@ -624,7 +624,6 @@
                     style: 'position: relative; padding: 20px; height: 100%; overflow: hidden; text-align: center;'
                 });
 
-                // Create a simple button instead of iframe
                 var openButton = $('<button/>', {
                     id: 'open-swagger-button',
                     class: 'red-ui-button',
@@ -648,7 +647,7 @@
                     label: this._('swagger.sidebar.label'),
                     name: this._('swagger.sidebar.name'),
                     content: content,
-                    iconClass: 'fa fa-scribd'  // Changed from 'fa fa-file-text-o' to 'fa fa-scribd'
+                    iconClass: 'fa fa-scribd'
                 });
             },
             oneditprepare: function () {
