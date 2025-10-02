@@ -34,7 +34,17 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Check if tests exist
+        id: check_tests
+        run: |
+          if grep -q '"test":' package.json && [ "$(npm pkg get scripts.test)" != '{}' ] && [ "$(npm pkg get scripts.test)" != 'null' ]; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run tests
+        if: steps.check_tests.outputs.has_tests == 'true'
         run: npm test
 
   build_and_publish:
